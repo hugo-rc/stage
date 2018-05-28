@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Éditeur de Spyder
-
-Ceci est un script temporaire.
+If you encounter "TclError: image "pyimageXX" doesn't exist", reboot the python core (ctrl+. on Spyder)
 """
 
 # =============================================================================
@@ -10,7 +8,7 @@ Ceci est un script temporaire.
 # =============================================================================
 from astropy.io import fits # Reading fits files
 from tkinter import * # graphical interface
-from matplotlib.pyplot import imsave, imshow 
+from matplotlib.pyplot import imsave
 import matplotlib.path as mpp #create polygon
 import numpy as np 
 from scipy.ndimage.interpolation import rotate
@@ -22,14 +20,15 @@ import pickle # binary files
 
 class PA_finder(Tk):
     """ Tool to find the PA of the disk"""
-    def __init__(self,parent,fits_name):#, continuum_fits):
+    def __init__(self,parent,fits_name, continuum_fits):
         Tk.__init__(self,parent)    # don't know exactly what it does, 
         self.parent = parent        # but it was recommended to put this
         
-#        self.continuum_fits=continuum_fits
-#        ct=fits.open(self.continuum_fits)
-#        self.cont_img=ct.data
-#        ct.close()
+        self.continuum_fits=continuum_fits
+        ct=fits.open(self.continuum_fits)
+        self.cont_img=ct[0].data
+        ct.close()
+        self.cont_img=self.cont_img[0,0,:,:]
         self.fits_name=fits_name
         fh=fits.open(self.fits_name)
         CDELT1=fh[0].header['CDELT1']
@@ -71,15 +70,15 @@ class PA_finder(Tk):
         
         self.first_im_but=Button(self.canvas, text="Frist image", command=self.first_img)
         self.first_im_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+50)
-#        self.mid_im_but=Button(self.canvas, text="Mid image", command=self.mid_img)
-#        self.mid_im_but.place(x=int(7/6*self.nx)+200, y=int(1/4*self.ny)+100)
+        self.mid_im_but=Button(self.canvas, text="Mid image", command=self.mid_img)
+        self.mid_im_but.place(x=int(7/6*self.nx)+150, y=int(1/4*self.ny)+50)
         self.last_im_but=Button(self.canvas, text="Last image", command=self.last_img)
-        self.last_im_but.place(x=int(7/6*self.nx)+200, y=int(1/4*self.ny)+50)
+        self.last_im_but.place(x=int(7/6*self.nx)+300, y=int(1/4*self.ny)+50)
         
         self.PA_entry=Entry(self)
         self.PA_entry.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+100)
         self.PA_entry.delete(0, END)
-        self.PA_entry.insert(0, "PA ( °) ?")
+        self.PA_entry.insert(0, "PA (deg) ?")
         self.rotate_but=Button(self.canvas, text='Rotate', command=self.rotate_img)
         self.rotate_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+150)
         self.validate_but=Button(self.canvas, text='Validate', command=self.validate)
@@ -96,8 +95,9 @@ class PA_finder(Tk):
         quote = """ INFO : 
         Select the first relevant (not noisy) channel with First image button.
         Find the "flat arms" image, make it rotate to vertical by typing an angle and clicking the Rotate button.
-        Once the "arms" are vertical, click the Done button.
+        Once the "arms" are vertical, clic the Validate button (it might take some time). Clic on the Mid Image button.
         Select the last relevant channel with Last image button.
+        You can crop the image by clicking on the Crop button.
         Finally, click on the Finish button to close the window.
         """
         T.insert(END, quote)
@@ -133,6 +133,7 @@ class PA_finder(Tk):
         
     def mid_img(self):
         """ Returns the index of the "flat arms" image"""
+        self.log.configure(text=" Index of the zero velocity channel saved")
         self.nm=self.n
 
     def last_img(self):
@@ -145,20 +146,19 @@ class PA_finder(Tk):
         try:
             self.PA=int(self.PA_entry.get())
             self.log.configure(text="Preview")   
-            self.CO_rot=rotate(self.CO[self.n],self.PA)
+            self.CO_rot=rotate(self.CO[self.n],self.PA, reshape=False)
             imsave('background.jpg', self.CO_rot)
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
         except ValueError:
-            self.log.configure(text="EROR: Please enter an float or integer")
-
+            self.log.configure(text="ERROR: Please enter an float or integer")
            
-        
+    
     def validate(self):
         """ Validates the choice of PA"""
         self.log.configure(text="PA saved. Clic on Crop to select the area to study")
-        self.CO=rotate(self.CO,self.PA,axes=(2,1))
-#        self.cont_img=rotate(self.cont_img,self.PA)
+        self.CO=rotate(self.CO,self.PA,axes=(2,1), reshape=False)
+        self.cont_img=rotate(self.cont_img,self.PA, reshape=False)
         # Removing the previous buttons and creating a new one to crop the image
         self.validate_but.destroy()
         self.rotate_but.destroy()
@@ -170,12 +170,13 @@ class PA_finder(Tk):
         
     def crop(self):
         """ Crops the image to keep the interesting part"""
-        if self.switch: # Second clic: crops
-            self.CO_rot_crop=self.CO_rot[:][self.x0:self.x1][self.y0:self.y1]
-#            self.cont_img=self.cont_img[self.x0:self.x1][self.y0:self.y1]
+        if self.switch: # Second clic: crop
+            self.CO=self.CO[:,self.y0:self.y1,self.x0:self.x1]
+            self.cont_img=self.cont_img[self.y0:self.y1,self.x0:self.x1]
             self.crop_but.destroy()
             self.cancel_but.destroy()
-            imsave('background.jpg', self.CO_rot_crop)
+            self.canvas.delete(self.id_rect)
+            imsave('background.jpg', self.CO[self.n])
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
             self.finish_but=Button(self.canvas, text='Done !', command=self.finish)
@@ -211,7 +212,7 @@ class PA_finder(Tk):
         
     def finish(self):
         """Quit the window"""
-        self.CO=self.CO_rot_crop
+        self.pos_star=np.unravel_index(np.argmax(self.cont_img, axis=None), self.cont_img.shape) # position of the max intensity in the continuum image == position of the star
         self.destroy()
 
 class maxima_finder(Tk):
@@ -396,14 +397,14 @@ class maxima_finder(Tk):
             
 class storage():
     """Contains all the relevant data about the object"""
-    def __init__(self, CO, PA, xc, yc, pos_maxima, obj, inc):
+    def __init__(self, CO, PA, xc, yc, pos_maxima, obj, inc, nm):
         self.CO=CO
         self.cont_img=cont_img
         self.pos_maxima=pos_maxima
         self.star_center=(xc,yc)
         self.obj=obj
         self.PA=PA
-        self.help="Contains: CO, pos_maxima, star_center, obj, PA, inc"
+        self.help="Contains: CO, pos_maxima, star_center, obj, PA, inc, nm (0 velocity index)"
         
 # =============================================================================
 # Main script
@@ -415,7 +416,7 @@ if __name__ == "__main__":
     path="/home/hugo/Documents/Stage/selection_objets/"
     obj="HD163296" #studied object
     continuum_fits=path+obj+"/Itziar/HD163296_continuum.fits"
-    xc = 257 ; yc = 257 ; # center of the star
+    #xc = 257 ; yc = 257 ; # center of the star
     PA = 138 ; #deg
     inc=38 #deg
     limits=[169, 370, 158, 359] #pos image
@@ -424,19 +425,20 @@ if __name__ == "__main__":
     ext = ["_sup_back","_sup_front","_inf_back" ,"_inf_front"]
 
     
-    PA_f = PA_finder(None, fits_name)#, continuum_fits)   
+    PA_f = PA_finder(None, fits_name, continuum_fits)   
     PA_f.title(" Selection of the parameters" )
     PA_f.mainloop()
     ni=PA_f.ni
+    nm=PA_f.nm - PA_f.ni
     nf=PA_f.nf
     CO=PA_f.CO     
     CO=CO[ni:nf] # Removing the noisy channels
-    
+    xs, ys=PA_f.pos_star
     for e in ext:
         Max_f = maxima_finder(None, CO)
-        Max_f.title("Maxima of emission for "+ext+"surface")
+        Max_f.title("Maxima of emission for "+e+" surface")
         Max_f.mainloop()    
-        data=storage(CO,PA_f.PA,xc,yc,Max_f.storage_pos_max,obj)
+        data=storage(CO,PA_f.PA,xs,ys,Max_f.storage_pos_max,obj, inc, nm)
         pickle.dump(data, file=fits_name+e+'.co_surf', protocol=pickle.HIGHEST_PROTOCOL)
 
     
