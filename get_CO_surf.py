@@ -463,7 +463,7 @@ if __name__ == "__main__":
     xs, ys=PA_f.pos_star
     for e in ext:
         Max_f = maxima_finder(None, CO)
-        Max_f.title("Maxima of emission for "+e+" surface")
+        Max_f.title("Maxima of emission for "+e[1:]+" surface")
         Max_f.mainloop()    
         data=storage(CO,PA_f.PA,xs,ys,Max_f.storage_pos_max,obj, ni, nm, nf, window)
         file_name=fits_name+e+'.co_surf'
