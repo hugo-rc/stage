@@ -31,8 +31,6 @@ class PA_finder(Tk):
         self.cont_img=self.cont_img[0,0,:,:]
         self.fits_name=fits_name
         fh=fits.open(self.fits_name)
-        CDELT1=fh[0].header['CDELT1']
-        self.px_size=abs(CDELT1)*3600 #arcsec
         CO=fh[0].data
         self.CO=CO[0]
         fh.close()
@@ -43,7 +41,10 @@ class PA_finder(Tk):
         
         # User interface:
         
-        self.canvas=Canvas(self, width=2*self.nx, height=self.ny)
+        self.w=max(self.nx,550) # width of the window
+        self.h=max(self.ny,550) # height of the window
+        
+        self.canvas=Canvas(self, width=2*self.w, height=self.h)
         self.canvas.pack()
         
         
@@ -55,41 +56,41 @@ class PA_finder(Tk):
         
         self.display_info()
         self.counter = Label(self)
-        self.counter.place(x=int(7/6*self.nx), y=int(1/4*self.ny)-50)
+        self.counter.place(x=int(7/6*self.w), y=int(1/4*self.h)-50)
         self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
         
         self.log = Label(self) 
-        self.log.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+200)
+        self.log.place(x=int(7/6*self.w), y=int(1/4*self.h)+200)
         
         # Interactions:
         
         self.prev_chan_but=Button(self.canvas, text='Previous channel', command=self.prev_chan)
-        self.prev_chan_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny))
+        self.prev_chan_but.place(x=int(7/6*self.w), y=int(1/4*self.h))
         self.next_chan_but=Button(self.canvas, text="Next channel", command=self.next_chan)
-        self.next_chan_but.place(x=int(7/6*self.nx+200), y=int(1/4*self.ny))
+        self.next_chan_but.place(x=int(7/6*self.w+200), y=int(1/4*self.h))
         
         self.first_im_but=Button(self.canvas, text="Frist image", command=self.first_img)
-        self.first_im_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+50)
+        self.first_im_but.place(x=int(7/6*self.w), y=int(1/4*self.h)+50)
         self.mid_im_but=Button(self.canvas, text="Mid image", command=self.mid_img)
-        self.mid_im_but.place(x=int(7/6*self.nx)+150, y=int(1/4*self.ny)+50)
+        self.mid_im_but.place(x=int(7/6*self.w)+150, y=int(1/4*self.h)+50)
         self.last_im_but=Button(self.canvas, text="Last image", command=self.last_img)
-        self.last_im_but.place(x=int(7/6*self.nx)+300, y=int(1/4*self.ny)+50)
+        self.last_im_but.place(x=int(7/6*self.w)+300, y=int(1/4*self.h)+50)
         
         self.PA_entry=Entry(self)
-        self.PA_entry.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+100)
+        self.PA_entry.place(x=int(7/6*self.w), y=int(1/4*self.h)+100)
         self.PA_entry.delete(0, END)
         self.PA_entry.insert(0, "PA (deg) ?")
         self.rotate_but=Button(self.canvas, text='Rotate', command=self.rotate_img)
-        self.rotate_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+150)
+        self.rotate_but.place(x=int(7/6*self.w), y=int(1/4*self.h)+150)
         self.validate_but=Button(self.canvas, text='Validate', command=self.validate)
-        self.validate_but.place(x=int(7/6*self.nx)+200, y=int(1/4*self.ny)+150)
+        self.validate_but.place(x=int(7/6*self.w)+200, y=int(1/4*self.h)+150)
         
     def display_info(self):
         """ User information"""
         S = Scrollbar(self)
         T = Text(self, height=6, width=50)
-        S.place(x=int(7/6*self.nx)+355, y=int(1/4*self.ny)+250)
-        T.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+250)
+        S.place(x=int(7/6*self.w)+355, y=int(1/4*self.h)+250)
+        T.place(x=int(7/6*self.w), y=int(1/4*self.h)+250)
         S.config(command=T.yview)
         T.config(yscrollcommand=S.set)
         quote = """ INFO : 
@@ -106,14 +107,14 @@ class PA_finder(Tk):
         
     def next_chan(self):
         """Go to the next channel"""
-        if self.n<self.nv:
+        if self.n<self.nv-1:
             self.n+=1
             self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
             imsave('background.jpg', self.CO[self.n])
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)      
         else:
-            self.detection.configure(text="last channel")
+            self.log.configure(text="last channel")
             
     def prev_chan(self):
         """Go to the previous channel"""
@@ -124,7 +125,7 @@ class PA_finder(Tk):
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)      
         else:
-            self.detection.configure(text="first channel")
+            self.log.configure(text="first channel")
     
     def first_img(self):
         """ Returns the index of the first interesting image"""
@@ -163,14 +164,15 @@ class PA_finder(Tk):
         self.validate_but.destroy()
         self.rotate_but.destroy()
         self.crop_but=Button(self.canvas, text='Crop', command=self.crop)
-        self.crop_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+150)
+        self.crop_but.place(x=int(7/6*self.w), y=int(1/4*self.h)+150)
         self.switch=False
-
         
         
     def crop(self):
         """ Crops the image to keep the interesting part"""
         if self.switch: # Second clic: crop
+            (self.x0,self.x1)=(min(self.x0,self.x1),max(self.x0,self.x1))
+            (self.y0,self.y1)=(min(self.y0,self.y1),max(self.y0,self.y1))
             self.CO=self.CO[:,self.y0:self.y1,self.x0:self.x1]
             self.cont_img=self.cont_img[self.y0:self.y1,self.x0:self.x1]
             self.crop_but.destroy()
@@ -180,14 +182,13 @@ class PA_finder(Tk):
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
             self.finish_but=Button(self.canvas, text='Done !', command=self.finish)
-            self.finish_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+150)
+            self.finish_but.place(x=int(7/6*self.w), y=int(1/4*self.h)+150)
         else: # First clic: select area
             self.log.configure(text="Clic and drag to select a rectangle")
             self.cancel_but=Button(self.canvas, text='Cancel', command=self.cancel)
-            self.cancel_but.place(x=int(7/6*self.nx+200), y=int(1/4*self.ny)+150)
+            self.cancel_but.place(x=int(7/6*self.w+200), y=int(1/4*self.h)+150)
             self.canvas.bind("<Button-1>", self.rect_start)
             self.canvas.bind("<ButtonRelease-1>", self.rect_end)
-
             self.switch=True
 
     def rect_start(self,event):
@@ -200,7 +201,6 @@ class PA_finder(Tk):
     def rect_end(self,event):
         self.x1=event.x
         self.y1=event.y
-        r=2
         self.log.configure(text="Area selected: clic on Crop to validate the selection")
         self.id_rect=self.canvas.create_rectangle(self.x0,self.y0,self.x1,self.y1,outline='white')
         self.canvas.delete(self.id_start)
@@ -212,9 +212,28 @@ class PA_finder(Tk):
         
     def finish(self):
         """Quit the window"""
-        self.pos_star=np.unravel_index(np.argmax(self.cont_img, axis=None), self.cont_img.shape) # position of the max intensity in the continuum image == position of the star
-        self.destroy()
-
+        checki=False
+        checkm=False
+        checkf=False
+        try:
+            self.ni=self.ni*1
+            checki=True
+        except:
+            self.log.configure(text="ERROR: You forgot to define the first channel. \n Define it and press Done again")
+        try:
+            self.nm=self.nm*1
+            checkm=True
+        except:
+            self.log.configure(text="ERROR: You forgot to define the zero velocity channel. \n Define it and press Done again")
+        try:
+            self.nf=self.nf*1
+            checkf=True
+        except:
+            self.log.configure(text="ERROR: You forgot to define the last channel. \n Define it and press Done again")
+        if checki and checkm and checkf:
+            self.pos_star=np.unravel_index(np.argmax(self.cont_img, axis=None), self.cont_img.shape) # position of the max intensity in the continuum image == position of the star
+            self.destroy()
+            
 class maxima_finder(Tk):
     def __init__(self,parent,CO):
         Tk.__init__(self,parent) # don't know exactly what it does, 
@@ -235,8 +254,11 @@ class maxima_finder(Tk):
         self.storage_pos_max=[] # initialazing storage variable for pos_maxima
         
         # User interface:
+
+        self.w=max(self.nx,550) # width of the window
+        self.h=max(self.ny,550) # height of the window
         
-        self.canvas=Canvas(self, width=2*self.nx, height=self.ny)
+        self.canvas=Canvas(self, width=2*550, height=550)
         self.canvas.pack()
         
         imsave('background.jpg', self.CO[self.n])
@@ -247,10 +269,10 @@ class maxima_finder(Tk):
         
         self.display_info()
         self.counter = Label(self)
-        self.counter.place(x=int(7/6*self.nx), y=int(1/4*self.ny)-50)
+        self.counter.place(x=int(7/6*self.w), y=int(1/4*self.h)-50)
         self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
         self.detection = Label(self) 
-        self.detection.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+250)
+        self.detection.place(x=int(7/6*self.w), y=int(1/4*self.h)+250)
         
         #Interaction:
         
@@ -258,20 +280,20 @@ class maxima_finder(Tk):
         self.canvas.bind("<Button-3>", self.remove_point)
         
         self.comp_max=Button(self.canvas, text="Compute maxima",command=self.compute_maxima)
-        self.comp_max.place(x=int(7/6*self.nx), y=int(1/4*self.ny))
+        self.comp_max.place(x=int(7/6*self.w), y=int(1/4*self.h))
         self.corr_but=Button(self.canvas, text="Correction", command=self.correction)
-        self.corr_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+50)
+        self.corr_but.place(x=int(7/6*self.w), y=int(1/4*self.h)+50)
         self.next_chan_but=Button(self.canvas, text="Next channel", command=self.next_chan)
-        self.next_chan_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+100)
+        self.next_chan_but.place(x=int(7/6*self.w), y=int(1/4*self.h)+100)
         self.reset_but=Button(self.canvas, text='RESET', command=self.reset)
-        self.reset_but.place(x=int(7/6*self.nx), y=int(1/4*self.ny)+200)
+        self.reset_but.place(x=int(7/6*self.w), y=int(1/4*self.h)+200)
         
     def display_info(self):
         """ User information"""
         S = Scrollbar(self)
         T = Text(self, height=6, width=50)
-        S.place(x=int(7/6*self.nx)+355, y=int(3/4*self.ny))
-        T.place(x=int(7/6*self.nx), y=int(3/4*self.ny))
+        S.place(x=int(7/6*self.w)+355, y=int(3/4*self.h))
+        T.place(x=int(7/6*self.w), y=int(3/4*self.h))
         S.config(command=T.yview)
         T.config(yscrollcommand=S.set)
         quote = """ INFO : 
@@ -288,7 +310,7 @@ class maxima_finder(Tk):
         """Adds the coordinates of the click to a list"""
         x = event.x 
         y = event.y 
-        if x<=self.nx:
+        if x<=self.nx and y<=self.ny:
             r = 2 # radius of the circle
             self.detection.configure(text="detected click on (" + str(event.x) +";"+ str(event.y)+")")
             self.id_point=self.id_point+[self.canvas.create_oval(x-r, y-r, x+r, y+r, fill = 'white')]
@@ -307,7 +329,7 @@ class maxima_finder(Tk):
         """Add the coordinates of the click to a correction list"""
         x = event.x 
         y = event.y 
-        if x<=self.nx:
+        if x<=self.nx and y<=self.ny:
             r = 2 # radius of the circle
             self.detection.configure(text="detected click on (" + str(event.x) +";"+ str(event.y)+")")
             self.id_point_corr=self.id_point_corr+[self.canvas.create_oval(x-r, y-r, x+r, y+r, fill = 'red')]
@@ -316,6 +338,7 @@ class maxima_finder(Tk):
     def reset(self):
         """ Reset all the parameters of the current channel. Does NOT change previous channels"""
         self.mouse.clear()
+        self.pos_maxima.clear()
         self.detection.configure(text="reset")
         for item in self.id_point:
             self.canvas.delete(item) 
@@ -343,7 +366,7 @@ class maxima_finder(Tk):
         points = np.vstack((x,y)).T
         poly=mpp.Path(self.mouse)
         mask = poly.contains_points(points)
-        mask=mask.reshape(self.nx,self.ny)
+        mask=mask.reshape(self.ny,self.nx)
         return mask
     
     def compute_maxima(self):
@@ -360,6 +383,7 @@ class maxima_finder(Tk):
                 if column[y]>0:
                     self.pos_maxima.append((x,y))
                     self.id_point_max=self.id_point_max+[self.canvas.create_oval(x-r, y-r, x+r, y+r, fill = 'green')]
+            self.mouse.clear()
     
     def correction(self):
         """Select the points you want to remove"""
@@ -375,18 +399,20 @@ class maxima_finder(Tk):
                         self.canvas.delete(self.id_point_max.pop(pos_item))
             for k in range(len(self.id_point_corr)):
                 self.canvas.delete(self.id_point_corr.pop())
+            self.mouse.clear()
         else:
             self.detection.configure(text="select the points you want to remove \n click correction again to remove them")
-            self.mouse=[]
+            self.mouse.clear()
             self.canvas.bind("<Button-1>", self.add_point_corr)
             self.switch=True
             
     def next_chan(self):
         """Go to the next channel"""
-        if self.n<self.nv:
-            self.storage_pos_max.append(pos_maxima)
+        if self.n<self.nv-1:
+            self.storage_pos_max.append(self.pos_maxima)
             self.n+=1
             self.reset()
+            self.detection.configure(text="")
             self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
             imsave('background.jpg', self.CO[self.n])
             self.img=PhotoImage(file='background.jpg')
@@ -397,14 +423,14 @@ class maxima_finder(Tk):
             
 class storage():
     """Contains all the relevant data about the object"""
-    def __init__(self, CO, PA, xc, yc, pos_maxima, obj, inc, nm):
+    def __init__(self, CO, PA, xs, ys, pos_maxima, obj, nm):
         self.CO=CO
-        self.cont_img=cont_img
+        #self.cont_img=cont_img
         self.pos_maxima=pos_maxima
-        self.star_center=(xc,yc)
+        self.star_center=(xs,ys)
         self.obj=obj
         self.PA=PA
-        self.help="Contains: CO, pos_maxima, star_center, obj, PA, inc, nm (0 velocity index)"
+        self.help="Contains: CO, pos_maxima, star_center, obj, PA, nm (0 velocity index)"
         
 # =============================================================================
 # Main script
@@ -416,10 +442,6 @@ if __name__ == "__main__":
     path="/home/hugo/Documents/Stage/selection_objets/"
     obj="HD163296" #studied object
     continuum_fits=path+obj+"/Itziar/HD163296_continuum.fits"
-    #xc = 257 ; yc = 257 ; # center of the star
-    PA = 138 ; #deg
-    inc=38 #deg
-    limits=[169, 370, 158, 359] #pos image
     fits_name = path+"HD163296/Itziar/HD163296_CO3-2.fits.gz" 
     
     ext = ["_sup_back","_sup_front","_inf_back" ,"_inf_front"]
@@ -429,7 +451,7 @@ if __name__ == "__main__":
     PA_f.title(" Selection of the parameters" )
     PA_f.mainloop()
     ni=PA_f.ni
-    nm=PA_f.nm - PA_f.ni
+    nm=PA_f.nm
     nf=PA_f.nf
     CO=PA_f.CO     
     CO=CO[ni:nf] # Removing the noisy channels
@@ -438,8 +460,10 @@ if __name__ == "__main__":
         Max_f = maxima_finder(None, CO)
         Max_f.title("Maxima of emission for "+e+" surface")
         Max_f.mainloop()    
-        data=storage(CO,PA_f.PA,xs,ys,Max_f.storage_pos_max,obj, inc, nm)
-        pickle.dump(data, file=fits_name+e+'.co_surf', protocol=pickle.HIGHEST_PROTOCOL)
+        data=storage(CO,PA_f.PA,xs,ys,Max_f.storage_pos_max,obj, nm)
+        file_name=fits_name+e+'.co_surf'
+        with open(file_name, 'wb') as handle:
+            pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     
 
