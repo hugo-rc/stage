@@ -13,6 +13,7 @@ import matplotlib.path as mpp #create polygon
 import numpy as np 
 from scipy.ndimage.interpolation import rotate
 import pickle # binary files
+from copy import copy
 
 # =============================================================================
 # Classes
@@ -48,7 +49,7 @@ class PA_finder(Tk):
         self.canvas.pack()
         
         
-        imsave('background.jpg', self.CO[self.n])
+        imsave('background.jpg', self.CO[self.n],cmap='afmhot')
         self.img=PhotoImage(file='background.jpg')
         self.background=self.canvas.create_image(0,0,anchor=NW,image=self.img)
         
@@ -110,7 +111,7 @@ class PA_finder(Tk):
         if self.n<self.nv-1:
             self.n+=1
             self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
-            imsave('background.jpg', self.CO[self.n])
+            imsave('background.jpg', self.CO[self.n], cmap='afmhot')
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)      
         else:
@@ -121,7 +122,7 @@ class PA_finder(Tk):
         if self.n>0:
             self.n-=1
             self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
-            imsave('background.jpg', self.CO[self.n])
+            imsave('background.jpg', self.CO[self.n], cmap='afmhot')
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)      
         else:
@@ -148,7 +149,7 @@ class PA_finder(Tk):
             self.PA=int(self.PA_entry.get())
             self.log.configure(text="Preview")   
             self.CO_rot=rotate(self.CO[self.n],self.PA, reshape=False)
-            imsave('background.jpg', self.CO_rot)
+            imsave('background.jpg', self.CO_rot, cmap='afmhot')
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
         except ValueError:
@@ -171,14 +172,14 @@ class PA_finder(Tk):
     def crop(self):
         """ Crops the image to keep the interesting part"""
         if self.switch: # Second clic: crop
-            (self.x0,self.x1)=(min(self.x0,self.x1),max(self.x0,self.x1))
-            (self.y0,self.y1)=(min(self.y0,self.y1),max(self.y0,self.y1))
+            (self.x0,self.x1)=(min(self.x0,self.x1),max(self.x0,self.x1)) # depending on how the rectangle has been selected
+            (self.y0,self.y1)=(min(self.y0,self.y1),max(self.y0,self.y1)) # after this, (x0,y0)=Top Left, (x1,y1)=Bottom Right
             self.CO=self.CO[:,self.y0:self.y1,self.x0:self.x1]
             self.cont_img=self.cont_img[self.y0:self.y1,self.x0:self.x1]
             self.crop_but.destroy()
             self.cancel_but.destroy()
             self.canvas.delete(self.id_rect)
-            imsave('background.jpg', self.CO[self.n])
+            imsave('background.jpg', self.CO[self.n], cmap='afmhot')
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
             self.finish_but=Button(self.canvas, text='Done !', command=self.finish)
@@ -261,7 +262,7 @@ class maxima_finder(Tk):
         self.canvas=Canvas(self, width=2*550, height=550)
         self.canvas.pack()
         
-        imsave('background.jpg', self.CO[self.n])
+        imsave('background.jpg', self.CO[self.n], cmap='afmhot')
         self.img=PhotoImage(file='background.jpg')
         self.background=self.canvas.create_image(0,0,anchor=NW,image=self.img)
         
@@ -409,12 +410,12 @@ class maxima_finder(Tk):
     def next_chan(self):
         """Go to the next channel"""
         if self.n<self.nv-1:
-            self.storage_pos_max.append(self.pos_maxima)
+            self.storage_pos_max.append(copy(self.pos_maxima)) # /!\ copy otherwise storage_pos_max will be modified when pos_maxima is modified
             self.n+=1
             self.reset()
             self.detection.configure(text="")
             self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
-            imsave('background.jpg', self.CO[self.n])
+            imsave('background.jpg', self.CO[self.n], cmap='afmhot')
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
         else:
@@ -423,14 +424,17 @@ class maxima_finder(Tk):
             
 class storage():
     """Contains all the relevant data about the object"""
-    def __init__(self, CO, PA, xs, ys, pos_maxima, obj, nm):
+    def __init__(self, CO, PA, xs, ys, pos_maxima, obj, ni, nm, nf, window):
         self.CO=CO
         #self.cont_img=cont_img
         self.pos_maxima=pos_maxima
         self.star_center=(xs,ys)
         self.obj=obj
         self.PA=PA
-        self.help="Contains: CO, pos_maxima, star_center, obj, PA, nm (0 velocity index)"
+        self.ni=ni
+        self.nm=nm
+        self.nf=nf
+        self.help="Contains: CO, pos_maxima, star_center, obj, PA, ni, nm (0 velocity index), nf, window"
         
 # =============================================================================
 # Main script
@@ -455,12 +459,13 @@ if __name__ == "__main__":
     nf=PA_f.nf
     CO=PA_f.CO     
     CO=CO[ni:nf] # Removing the noisy channels
+    window=[(PA_f.x0, PA_f.y0),(PA_f.x1,PA_f.y1)] # coordinates of the resized window (Top Left and Bottom Right)
     xs, ys=PA_f.pos_star
     for e in ext:
         Max_f = maxima_finder(None, CO)
         Max_f.title("Maxima of emission for "+e+" surface")
         Max_f.mainloop()    
-        data=storage(CO,PA_f.PA,xs,ys,Max_f.storage_pos_max,obj, nm)
+        data=storage(CO,PA_f.PA,xs,ys,Max_f.storage_pos_max,obj, ni, nm, nf, window)
         file_name=fits_name+e+'.co_surf'
         with open(file_name, 'wb') as handle:
             pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
