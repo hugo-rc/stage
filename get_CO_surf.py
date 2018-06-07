@@ -419,6 +419,7 @@ class maxima_finder(Tk):
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
         else:
+            self.storage_pos_max.append(copy(self.pos_maxima)) # /!\ copy otherwise storage_pos_max will be modified when pos_maxima is modified
             self.detection.configure(text="job done")
             self.destroy()
             
@@ -426,7 +427,6 @@ class storage():
     """Contains all the relevant data about the object"""
     def __init__(self, CO, PA, xs, ys, pos_maxima, obj, ni, nm, nf, window):
         self.CO=CO
-        #self.cont_img=cont_img
         self.pos_maxima=pos_maxima
         self.star_center=(xs,ys)
         self.obj=obj
@@ -434,6 +434,7 @@ class storage():
         self.ni=ni
         self.nm=nm
         self.nf=nf
+        self.window=window
         self.help="Contains: CO, pos_maxima, star_center, obj, PA, ni, nm (0 velocity index), nf, window"
         
 # =============================================================================
@@ -448,7 +449,7 @@ if __name__ == "__main__":
     continuum_fits=path+obj+"/Itziar/HD163296_continuum.fits"
     fits_name = path+"HD163296/Itziar/HD163296_CO3-2.fits.gz" 
     
-    ext = ["_sup_back","_sup_front","_inf_back" ,"_inf_front"]
+    ext = ["_sup_back", "_sup_front","_inf_back","_inf_front"]
 
     
     PA_f = PA_finder(None, fits_name, continuum_fits)   
