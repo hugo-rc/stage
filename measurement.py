@@ -5,7 +5,6 @@ Created on Mon May 28 12:53:43 2018
 
 @author: hugo
 """
-
 # =============================================================================
 # Packages
 # =============================================================================
@@ -18,7 +17,8 @@ from scipy.ndimage.interpolation import rotate
 import numpy as np
 from copy import copy
 from scipy.optimize import curve_fit
-
+from get_CO_surf import storage
+import scipy.stats as st
 # =============================================================================
 # Constants
 # =============================================================================
@@ -27,7 +27,9 @@ G=const.G.value
 M_sun=const.M_sun.value
 c=const.c.value
 au=const.au.value
-
+hp=const.h.value
+kB=const.k_B.value
+arcsec=4.848136811095e-06
 # =============================================================================
 # Functions
 # =============================================================================
@@ -35,7 +37,7 @@ au=const.au.value
 def r(x,yf,yb):
     """ Radius of the orbit. y can either be the y coordinate of a front or of a back side.
     Units : x, yf, yb : pixel
-            r : au
+            r : [au]
     """
     yc=(yf+yb)/2
     return ((x-xs)**2+((yf-yc)/np.cos(inc))**2)**0.5*px_size*D
@@ -43,15 +45,15 @@ def r(x,yf,yb):
 def h(yc):
     """ Height of the orbit. yc = (y_front+y_back)/2
     Units : x, yf, yb : pixel
-            r : au
+            r : [au]
     
     """
     return abs((yc-ys)/np.sin(inc))*px_size*D
 
 def v(x,yf,yb,v0):
     """ Velocity of the gas around the star
-    Units: x, yf, yb : pixel
-           v0, v : m/s             
+    Units: x, yf, yb : [pixel]
+           v0, v : [m/s]             
     """
     return abs(v0*r(x,yf,yb)/((x-xs)*np.sin(inc)*px_size*D))
 
@@ -59,6 +61,28 @@ def v_kep(R,M):
     """ Returns the keplerian velocity at radius R (au) around a star of mass M (unit of M_sun)"""
     return np.sqrt(G*M*M_sun/(R*au))
 
+def confIntMean(a, conf=0.95):
+    sem, m = st.sem(a), st.t.ppf((1+conf)/2., len(a)-1)
+    return m*sem
+
+def flux_to_Tbrigh(F, wl, BMAJ, BMIN):
+    """
+         Convert Flux density in Jy to brightness temperature [K]
+     Flux [Jy]
+     wl [m]
+     BMAJ, BMIN in [deg], ie as in fits header
+
+     T [K]
+     """
+    nu = c/wl 
+    factor = 1e26 # 1 Jy = 10^-26 USI
+    conversion_factor = (BMIN * BMAJ * (3600*arcsec)**2 * np.pi/4/np.log(2)) # beam 
+    #F = factor *  conversion_factor * 2.*hp/c**2 * nu^3/ (np.exp(hp * nu / (kB * T)) -1.) 
+    exp_m1 = factor *  conversion_factor * (2*hp*nu**3)/(F*c**2)
+    hnu_kT =  np.log(max(exp_m1,1e-10) + 1)
+    T = hp * nu / (hnu_kT * kB) 
+    
+    return T 
 
 # =============================================================================
 # Data
@@ -85,6 +109,9 @@ px_size=abs(CDELT1)*3600 #arcsec
 restfreq=fh[0].header['RESTFRQ'] #freq of the transition studied
 CRVAL3=fh[0].header['CRVAL3'] #frequency of the 1st channel
 CDELT3=fh[0].header['CDELT3'] #freq step
+BMIN=fh[0].header['BMIN'] # [deg] Beam major axis length
+BMAJ=fh[0].header['BMAJ'] # [deg] Beam minor axis length
+wl=c/CRVAL3
 fh.close()
 
 ext = ["_sup_back","_sup_front","_inf_back" ,"_inf_front"]
@@ -123,56 +150,65 @@ n=len(pos_max_sup_back)
 # Radius, height and velocity of the orbits:
 # =============================================================================
 
-r_front=[]
-r_back=[]
-h_front=[]
-h_back=[]
-v_front=[]
-v_back=[]
+r_sup=[]
+r_inf=[]
+h_sup=[]
+h_inf=[]
+v_sup=[]
+v_inf=[]
 
 for i in range(n):
-    v0=v_obs[i]
-    # --Sup surface:
-    try:
-        xmax=min(pos_max_sup_back[i][-1][0],pos_max_sup_front[i][-1][0]) # 
-        xmin=max(pos_max_sup_back[i][0][0],pos_max_sup_front[i][0][0])
-    except IndexError:
-        r_front.append(False)
-        h_front.append(False)
-        v_front.append(False)
+    if i <= 18 or i >= 36 : # removing the chans where the arms were too vertical
+        v0=v_obs[i]
+        # --Sup surface:
+        try:
+            xmax=min(pos_max_sup_back[i][-1][0],pos_max_sup_front[i][-1][0]) # 
+            xmin=max(pos_max_sup_back[i][0][0],pos_max_sup_front[i][0][0])
+        except IndexError:
+            r_sup.append(False)
+            h_sup.append(False)
+            v_sup.append(False)
+        else:
+            yb=np.array([])
+            yf=np.array([])
+            yc=np.array([])
+            x=np.array([xmin+i for i in range(0,xmax-xmin)])
+            for k in range(len(x)):
+                yb=np.append(yb, pos_max_sup_back[i][k][1])
+                yf=np.append(yf, pos_max_sup_front[i][k][1])
+                yc=(yb+yf)/2
+                
+            r_sup.append(copy(r(x,yf,yb)))
+            h_sup.append(copy(h(yc)))
+            v_sup.append(copy(v(x,yf,yb,v0))) 
+        
+        # --Inf surface:
+        try:
+            xmax=min(pos_max_inf_back[i][-1][0],pos_max_inf_front[i][-1][0]) # 
+            xmin=max(pos_max_inf_back[i][0][0],pos_max_inf_front[i][0][0])
+        except IndexError:
+            r_inf.append(False)
+            h_inf.append(False)    
+            v_inf.append(False)
+        else:
+            yb=np.array([])
+            yf=np.array([])
+            yc=np.array([])
+            x=np.array([xmin+i for i in range(0,xmax-xmin)])
+            for k in range(len(x)):
+                yb=np.append(yb, pos_max_inf_back[i][k][1])
+                yf=np.append(yf, pos_max_inf_front[i][k][1])
+                yc=(yb+yf)/2
+            r_inf.append(copy(r(x,yf,yb)))
+            h_inf.append(copy(h(yc)))
+            v_inf.append(copy(v(x,yf,yb,v0)))
     else:
-        yb=np.array([])
-        yf=np.array([])
-        yc=np.array([])
-        x=np.array([xmin+i for i in range(0,xmax-xmin)])
-        for k in range(len(x)):
-            yb=np.append(yb, pos_max_sup_back[i][k][1])
-            yf=np.append(yf, pos_max_sup_front[i][k][1])
-            yc=(yb+yf)/2
-        r_front.append(copy(r(x,yf,yb)))
-        h_front.append(copy(h(yc)))
-        v_front.append(copy(v(x,yf,yb,v0))) 
-    
-    # --Inf surface:
-    try:
-        xmax=min(pos_max_inf_back[i][-1][0],pos_max_inf_front[i][-1][0]) # 
-        xmin=max(pos_max_inf_back[i][0][0],pos_max_inf_front[i][0][0])
-    except IndexError:
-        r_back.append(False)
-        h_back.append(False)    
-        v_back.append(False)
-    else:
-        yb=np.array([])
-        yf=np.array([])
-        yc=np.array([])
-        x=np.array([xmin+i for i in range(0,xmax-xmin)])
-        for k in range(len(x)):
-            yb=np.append(yb, pos_max_inf_back[i][k][1])
-            yf=np.append(yf, pos_max_inf_front[i][k][1])
-            yc=(yb+yf)/2
-        r_back.append(copy(r(x,yf,yb)))
-        h_back.append(copy(h(yc)))
-        v_back.append(copy(v(x,yf,yb,v0)))
+        r_sup.append(False)
+        h_sup.append(False)
+        v_sup.append(False)
+        r_inf.append(False)
+        h_inf.append(False)    
+        v_inf.append(False)
 
 
 # =============================================================================
@@ -203,53 +239,282 @@ plt.show()
 
 # Radius vs Height
 
-plt.plot(r_front[n_test],h_front[n_test],'x')
+plt.plot(r_sup[n_test],h_sup[n_test],'x')
 plt.xlabel("R [au]")
 plt.ylabel("h CO [au]")
+plt.title(" Radius vs heigh for channel " + str(n_test))
 plt.show()
 
 # Raduis vs velocity
 
-plt.plot(r_front[n_test],v_front[n_test]/1000)
+plt.plot(r_sup[n_test],v_sup[n_test]/1000)
 
 # Fit of the velocity with a keplerian model
 
-M, pcov = curve_fit(v_kep, r_front[n_test], v_front[n_test])
+M, pcov = curve_fit(v_kep, r_sup[n_test], v_sup[n_test])
 R=np.linspace(50,500,200)
 plt.plot(R, v_kep(R,M)/1000)
 plt.xlabel("R [au]")
 plt.ylabel("v [km/s]")
+plt.title(" Radius vs speed for channel " + str(n_test))
 plt.show()
 
 print(M)
 
 # =============================================================================
-# Averaged on all the chan
+# All the chan
 # =============================================================================
 
+# Attempt 1 : group all the chan, fit
+
+# Flatten the lists :
+radius=[]
+height=[]
+speed=[]
+
+for sublist in r_sup+r_inf:
+    try: 
+        for item in sublist:
+            radius.append(item)
+    except TypeError:
+        pass
+
+for sublist in h_sup+h_inf:
+    try: 
+        for item in sublist:
+            height.append(item)
+    except TypeError:
+        pass
+            
+for sublist in v_sup+v_inf:
+    try: 
+        for item in sublist:
+            speed.append(item)
+    except TypeError:
+        pass
+
+radius=np.array(radius)
+height=np.array(height)
+speed=np.array(speed)
+
+# Sort theese lists by increasing radii :
+
+idx = np.argsort(radius)
+radius=np.array(radius)[idx]
+height=np.array(height)[idx]
+speed=np.array(speed)[idx]
+
+plt.plot(radius, height,"+")
+plt.xlabel("R [au]")
+plt.ylabel("h CO [au]")
+plt.title(" Radius vs height on all the channels")
+plt.show()
+
+plt.plot(radius, speed/1000,"+")
+M, pcov = curve_fit(v_kep, r_sup[n_test], v_sup[n_test])
+R=np.linspace(50,500,200)
+plt.plot(R,v_kep(R,M)/1000)
+plt.xlabel("R [au]")
+plt.ylabel("v [km/s]")
+plt.ylim((1,8))
+plt.title(" Radius vs speed all the channels + fit keplerian velocity")
+plt.show()
+
+print('mass of the star: ',float(M), ' Msun')
+
+
+# Attempt 2 : fit each chan individualy, average on all the fits
+mass=[]
+for i in range(n):
+    if type(r_sup[i])!= bool:
+        M, pcov = curve_fit(v_kep, r_sup[i], v_sup[i])
+        mass.append(M) 
+    if type(r_inf[i])!=bool:
+        M, pcov = curve_fit(v_kep, r_inf[i], v_inf[i])
+        mass.append(M)
+    
+
+mass=np.mean(mass)
+
+R=np.linspace(50,500,200)
+plt.plot(radius, speed/1000,"+")
+plt.plot(R, v_kep(R,mass)/1000)
+plt.xlabel("R [au]")
+plt.ylabel("v [km/s]")
+plt.ylim((1,8))
+plt.title(" Radius vs speed, fit chan 1 by 1 and averaged mass")
+plt.show()
+print('mass of the star: ',mass, ' Msun')
 
 
 
+# =============================================================================
+# Dispersion
+# =============================================================================
+
+deltaR=10 # (au)
+Rmin=20
+Rmax=550
+
+radius_avg=[]
+radius_err=[]
+height_avg=[]
+height_err=[]
+speed_avg=[]
+speed_err=[]
+
+j=0
+for i in range(int((Rmax-Rmin)/deltaR)):
+    avg_r=[]
+    avg_h=[]
+    avg_s=[]
+    while j<len(radius) and radius[j]>Rmin+i*deltaR and radius[j]<Rmin+(i+1)*deltaR :       
+        avg_r.append(radius[j])
+        avg_h.append(height[j])
+        avg_s.append(speed[j]/1000)
+        j+=1
+    if len(avg_r)!=0:
+        radius_avg.append(np.mean(avg_r))
+        radius_err.append(confIntMean(avg_r)) # 95% confidence interval
+        height_avg.append(np.mean(avg_h))
+        height_err.append(confIntMean(avg_h)) # 95% confidence interval
+        speed_avg.append(np.mean(avg_s))
+        speed_err.append(confIntMean(avg_s)) # 95% confidence interval
+        
+        
+plt.errorbar(radius_avg,height_avg,height_err,radius_err,fmt='+')
+plt.xlabel("R [au]")
+plt.ylabel("h CO [au]")
+plt.show()
+plt.errorbar(radius_avg,speed_avg,speed_err,radius_err,fmt='+')
+plt.plot(R, v_kep(R,M)/1000)
+plt.xlabel("R [au]")
+plt.ylabel("v [km/s]")
+plt.show()
+        
+
+# =============================================================================
+# Temperature of brigtness
+# =============================================================================
+
+Tb_sup_front=[]
+Tb_sup_back=[]
+Tb_inf_front=[]
+Tb_inf_back=[]
+for i in range(n):
+    if i <= 18 or i >= 36 : # removing the chans where the arms were too vertical
+        v0=v_obs[i]
+        # --Sup surface:
+        try:
+            xmax=min(pos_max_sup_back[i][-1][0],pos_max_sup_front[i][-1][0]) # 
+            xmin=max(pos_max_sup_back[i][0][0],pos_max_sup_front[i][0][0])
+        except IndexError:
+            Tb_sup_front.append(False)
+            Tb_sup_back.append(False)
+
+        else:
+            T_sup_f=np.array([])
+            T_sup_b=np.array([])
+            x=np.array([xmin+i for i in range(0,xmax-xmin)])
+            for k in range(len(x)):
+                T_sup_f=np.append(T_sup_f,flux_to_Tbrigh(CO[i][pos_max_sup_front[i][k][0],pos_max_sup_front[i][k][1]],wl,BMAJ,BMIN))
+                T_sup_b=np.append(T_sup_b,flux_to_Tbrigh(CO[i][pos_max_sup_back[i][k][0],pos_max_sup_back[i][k][1]],wl,BMAJ,BMIN))
+
+            Tb_sup_front.append(T_sup_f)
+            Tb_sup_back.append(T_sup_b)
+        # --Inf surface:
+        try:
+            xmax=min(pos_max_inf_back[i][-1][0],pos_max_inf_front[i][-1][0]) # 
+            xmin=max(pos_max_inf_back[i][0][0],pos_max_inf_front[i][0][0])
+        except IndexError:
+            Tb_inf_front.append(False)
+            Tb_inf_back.append(False)
+
+        else:
+            T_inf_f=np.array([])
+            T_inf_b=np.array([])
+            x=np.array([xmin+i for i in range(0,xmax-xmin)])
+            for k in range(len(x)):
+                T_inf_f=np.append(T_inf_f,flux_to_Tbrigh(CO[i][pos_max_sup_front[i][k][0],pos_max_sup_front[i][k][1]],wl,BMAJ,BMIN))
+                T_inf_b=np.append(T_inf_b,flux_to_Tbrigh(CO[i][pos_max_sup_back[i][k][0],pos_max_sup_back[i][k][1]],wl,BMAJ,BMIN))
+
+            Tb_inf_front.append(T_inf_f)
+            Tb_inf_back.append(T_inf_b)
+
+    else:
+        Tb_sup_front.append(False)
+        Tb_sup_back.append(False)
+        Tb_inf_front.append(False)
+        Tb_inf_back.append(False)
 
 
 
+Tb_sup_back_flat=[]
+Tb_sup_front_flat=[]
+Tb_inf_back_flat=[]
+Tb_inf_front_flat=[]
+
+r_sup_flat=[]
+r_inf_flat=[]
 
 
+# flattening temp
+
+for sublist in Tb_sup_back:
+    try: 
+        for item in sublist:
+            Tb_sup_back_flat.append(item)
+    except TypeError:
+        pass
+
+for sublist in Tb_sup_front:
+    try: 
+        for item in sublist:
+            Tb_sup_front_flat.append(item)
+    except TypeError:
+        pass
+    
+for sublist in Tb_inf_back:
+    try: 
+        for item in sublist:
+            Tb_inf_back_flat.append(item)
+    except TypeError:
+        pass
+
+for sublist in Tb_inf_front:
+    try: 
+        for item in sublist:
+            Tb_inf_front_flat.append(item)
+    except TypeError:
+        pass
 
 
+# flattening radii
+        
+for sublist in r_inf:
+    try: 
+        for item in sublist:
+            r_inf_flat.append(item)
+    except TypeError:
+        pass
+    
+for sublist in r_sup:
+    try: 
+        for item in sublist:
+            r_sup_flat.append(item)
+    except TypeError:
+        pass
 
 
+plt.plot(r_sup_flat, Tb_sup_front_flat,'+',color='blue')
+plt.plot(r_inf_flat, Tb_inf_front_flat,'+',color='red')
+plt.plot(r_sup_flat, Tb_sup_back_flat,'+',color='black')
+plt.plot(r_inf_flat, Tb_inf_back_flat,'+',color='green')
 
-
-
-
-
-
-
-
-
-
-
+plt.ylim((0,15))
+plt.xlabel('R [au]')
+plt.ylabel('T_B [K]')
+plt.show()
 
 
 
