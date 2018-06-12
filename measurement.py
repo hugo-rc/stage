@@ -79,8 +79,13 @@ def flux_to_Tbrigh(F, wl, BMAJ, BMIN):
     conversion_factor = (BMIN * BMAJ * (3600*arcsec)**2 * np.pi/4/np.log(2)) # beam 
     #F = factor *  conversion_factor * 2.*hp/c**2 * nu^3/ (np.exp(hp * nu / (kB * T)) -1.) 
     exp_m1 = factor *  conversion_factor * (2*hp*nu**3)/(F*c**2)
-    hnu_kT =  np.log(max(exp_m1,1e-10) + 1)
-    T = hp * nu / (hnu_kT * kB) 
+#    hnu_kT =  np.log(max(exp_m1,1e-10) + 1)
+#    T = hp * nu / (hnu_kT * kB)
+    if exp_m1 >0:
+        hnu_kT =  np.log(exp_m1 + 1)
+        T = hp * nu / (hnu_kT * kB)
+    else:
+        T=None
     
     return T 
 
@@ -145,6 +150,7 @@ pos_max_inf_front=np.array(data_inf_front.pos_maxima)
 
 n=len(pos_max_sup_back)
 
+CO=data_sup_front.CO # Same image than in the repvious script 
 
 # =============================================================================
 # Radius, height and velocity of the orbits:
@@ -219,7 +225,7 @@ n_test=17
 
 # Visual checking of the pos of each maximum
 
-img=rotate(CO[ni+n_test][xw0:xw1,yw0:yw1], PA, reshape=False) # image with the same rotation, window, etc ... as the get_CO_surf.py script
+img=CO[n_test] # image with the same rotation, window, etc ... as the get_CO_surf.py script
 plt.imshow(img, cmap='afmhot')
 plt.plot(xs, ys, "*", color="yellow")
 x_max_inf_back=[pos_max_inf_back[n_test][k][0] for k in range(len(pos_max_inf_back[n_test]))]
@@ -505,13 +511,22 @@ for sublist in r_sup:
     except TypeError:
         pass
 
+idx = np.argsort(r_sup_flat)
+r_sup_flat=np.array(r_sup_flat)[idx]
+Tb_sup_front_flat=np.array(Tb_sup_front_flat)[idx]
+Tb_sup_back_flat=np.array(Tb_sup_back_flat)[idx]
+
+idx = np.argsort(r_inf_flat)
+r_inf_flat=np.array(r_inf_flat)[idx]
+Tb_inf_front_flat=np.array(Tb_inf_front_flat)[idx]
+Tb_inf_back_flat=np.array(Tb_inf_back_flat)[idx]
 
 plt.plot(r_sup_flat, Tb_sup_front_flat,'+',color='blue')
 plt.plot(r_inf_flat, Tb_inf_front_flat,'+',color='red')
 plt.plot(r_sup_flat, Tb_sup_back_flat,'+',color='black')
 plt.plot(r_inf_flat, Tb_inf_back_flat,'+',color='green')
 
-plt.ylim((0,15))
+#plt.ylim((0,50))
 plt.xlabel('R [au]')
 plt.ylabel('T_B [K]')
 plt.show()
