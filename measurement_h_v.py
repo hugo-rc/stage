@@ -455,6 +455,13 @@ height_std=np.array([item for item in height_std if item!= None])
 speed_avg=np.array([item for item in speed_avg if item!= None])
 speed_std=np.array([item for item in speed_std if item!= None])
 
+
+
+# Fit of the remaining points with keplerian velocity
+M, pcov = curve_fit(v_kep, radius_s_avg, 1000*speed_avg, sigma=10*speed_std)
+R=np.linspace(50,500,200)
+dM=np.sqrt(np.diag(pcov))
+
         
 plt.errorbar(radius_h_avg,height_avg,3*height_std,3*radius_h_std,fmt='+')
 plt.xlabel("R [au]")
@@ -466,6 +473,7 @@ plt.xlabel("R [au]")
 plt.ylabel("v [km/s]")
 plt.show()
         
+print('mass of the star: ',M, '+/-', dM , ' Msun')
 
 
 
