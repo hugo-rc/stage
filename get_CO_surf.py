@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 """
+@author: hugo
+
+BEFORE USE : 
+
+    Make sure you modified every variable that depend on the object you study. Quick way to find them : research TO BE MODIFIED in the script
+
 If you encounter "TclError: image "pyimageXX" doesn't exist", reboot the python core (ctrl+. on Spyder)
 """
 
@@ -14,6 +20,8 @@ import numpy as np
 from scipy.ndimage.interpolation import rotate
 import pickle # binary files
 from copy import copy
+from scipy.misc import imresize
+
 
 # =============================================================================
 # Classes
@@ -39,7 +47,7 @@ class PA_finder(Tk):
         self.ny=len(self.CO[0]) # number of lines
         self.nv=len(self.CO) #number of chanels
         self.n=0
-        
+        self.cont_img=imresize(self.cont_img,(self.nx,self.ny)) #resize the cont image so match the shape of the CO images
         # User interface:
         
         self.w=max(self.nx,550) # width of the window
@@ -444,13 +452,13 @@ class storage():
 
                 
 if __name__ == "__main__":
-    path="/home/hugo/Documents/Stage/selection_objets/"
-    obj="HD163296" #studied object
-    continuum_fits=path+obj+"/Itziar/HD163296_continuum.fits"
-    fits_name = path+"HD163296/Itziar/HD163296_CO3-2.fits.gz" 
+    path="/home/hugo/Documents/Stage/selection_objets/HD97048/"                     ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+    obj="HD97048" #studied object                                                   ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+    continuum_fits=path+"/HD97048_band7_continuum_selfcal_1024_0.07arcsec_0.13mJy_briggs.image.fits"    ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+    fits_name = path+"/HD_97048_13CO_21_uniform_image.image.fits"                           ######### /!\ TO BE MODIFIED FOR EACH OBJECT
     
     ext = ["_sup_back", "_sup_front","_inf_back","_inf_front"]
-
+    
     
     PA_f = PA_finder(None, fits_name, continuum_fits)   
     PA_f.title(" Selection of the parameters" )

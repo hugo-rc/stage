@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon May 28 12:53:43 2018
+Created on Wed Jun 13 10:04:40 2018
 
 @author: hugo
 
 BEFORE USE : 
-    
     Make sure you have executed the get_CO_surf.py script prior to this one and have .co_surf files in your directory
-    
+
     Make sure you modified every variable that depend on the object you study. Quick way to find them : research TO BE MODIFIED in the script
 
 """
+
 # =============================================================================
 # Packages
 # =============================================================================
@@ -101,13 +101,13 @@ def flux_to_Tbrigh(F, wl, BMAJ, BMIN):
 # =============================================================================
 
 
-path="/home/hugo/Documents/Stage/selection_objets/HD97048/"     ######### /!\ TO BE MODIFIED FOR EACH OBJECT
-fits_name = path+"HD_97048_13CO_21_uniform_image.image.fits"    ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+path="/home/hugo/Documents/Stage/selection_objets/HD163296/Itziar/"     ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+fits_name = path+"HD163296_CO3-2.fits.gz"    ######### /!\ TO BE MODIFIED FOR EACH OBJECT
 pc2au=648000/np.pi #parsec to au
 deg2rad=np.pi/180 
 
-D= 158 # (pc)                                                   ######### /!\ TO BE MODIFIED FOR EACH OBJECT
-inc=42.8 *deg2rad # (rad)                                       ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+D= 122 # (pc)                                                   ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+inc=38 *deg2rad # (rad)                                       ######### /!\ TO BE MODIFIED FOR EACH OBJECT
 
 
 fh=fits.open(fits_name)
@@ -171,7 +171,7 @@ v_sup=[]
 v_inf=[]
 
 for i in range(n):
-    if True:#i <= 18 or i >= 36 : # removing the chans where the arms were too vertical  ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+    if i <= 18 or i >= 36 : # removing the chans where the arms were too vertical  ######### /!\ TO BE MODIFIED FOR EACH OBJECT
         v0=v_obs[i]
         # --Sup surface:
         try:
@@ -366,40 +366,101 @@ print('mass of the star: ',mass, ' Msun')
 # =============================================================================
 
 deltaR=10 # (au)                                                    ######### /!\ TO BE MODIFIED FOR EACH OBJECT
-Rmin=20                                                             ######### /!\ TO BE MODIFIED FOR EACH OBJECT
-Rmax=550                                                            ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+Rmin=20   # (au)                                                    ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+Rmax=550  # (au)                                                    ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+
+# Method 1 : Removing values with error sup than 3 sigma
                 
-radius_avg=[]
-radius_err=[]
+radius_h_avg=[]
+radius_h_std=[]
+radius_s_avg=[]
+radius_s_std=[]
 height_avg=[]
-height_err=[]
+height_std=[]
 speed_avg=[]
-speed_err=[]
+speed_std=[]
 
 j=0
+k=0
+l=0
 for i in range(int((Rmax-Rmin)/deltaR)):
-    avg_r=[]
     avg_h=[]
     avg_s=[]
     while j<len(radius) and radius[j]>Rmin+i*deltaR and radius[j]<Rmin+(i+1)*deltaR :       
-        avg_r.append(radius[j])
         avg_h.append(height[j])
         avg_s.append(speed[j]/1000)
         j+=1
-    if len(avg_r)!=0:
-        radius_avg.append(np.mean(avg_r))
-        radius_err.append(confIntMean(avg_r)) # 95% confidence interval
+    if len(avg_h)!=0:
         height_avg.append(np.mean(avg_h))
-        height_err.append(confIntMean(avg_h)) # 95% confidence interval
+        height_std.append(np.std(avg_h)) 
         speed_avg.append(np.mean(avg_s))
-        speed_err.append(confIntMean(avg_s)) # 95% confidence interval
+        speed_std.append(np.std(avg_s)) 
+    else:
+        height_avg.append(None)
+        height_std.append(None) 
+        speed_avg.append(None)
+        speed_std.append(None) 
+    # Removing the value with error sup than 3 sigma 
+    avg_r=[]
+    avg_h=[]
+    avg_s=[]
+    while k<len(radius) and radius[k]>Rmin+i*deltaR and radius[k]<Rmin+(i+1)*deltaR :  
+        if height_avg[i]!=None and abs(height[k]-height_avg[i])<3*height_std[i]:
+            avg_r.append(radius[k])
+            avg_h.append(height[k])
+        k+=1
+    if len(avg_h)!=0:
+        radius_h_avg.append(np.mean(avg_r))
+        radius_h_std.append(np.std(avg_r))
+        height_avg.pop()
+        height_std.pop()
+        height_avg.append(np.mean(avg_h))
+        height_std.append(np.std(avg_h))
+    else:
+        height_avg.pop()
+        height_std.pop()
+        radius_h_avg.append(None)
+        radius_h_std.append(None)
+        height_avg.append(None)
+        height_std.append(None) 
+    avg_r=[]
+    while l<len(radius) and radius[l]>Rmin+i*deltaR and radius[l]<Rmin+(i+1)*deltaR :  
+        if speed_avg[i]!=None and abs(speed[l]/1000-speed_avg[i])<3*speed_std[i]:
+            avg_r.append(radius[l])
+            avg_s.append(speed[l]/1000)
+        l+=1
+    if len(avg_s)!=0:
+        radius_s_avg.append(np.mean(avg_r))
+        radius_s_std.append(np.std(avg_r))
+        speed_avg.pop()
+        speed_std.pop()
+        speed_avg.append(np.mean(avg_s))
+        speed_std.append(np.std(avg_s)) 
+    else:
+        speed_avg.pop()
+        speed_std.pop()
+        speed_avg.append(None)
+        speed_std.append(None)
+        radius_s_avg.append(None)
+        radius_s_std.append(None)
         
         
-plt.errorbar(radius_avg,height_avg,height_err,radius_err,fmt='+')
+        
+radius_h_avg=np.array([item for item in radius_h_avg if item!= None])
+radius_h_std=np.array([item for item in radius_h_std if item!= None])
+radius_s_avg=np.array([item for item in radius_s_avg if item!= None])
+radius_s_std=np.array([item for item in radius_s_std if item!= None])
+height_avg=np.array([item for item in height_avg if item!= None])
+height_std=np.array([item for item in height_std if item!= None])
+speed_avg=np.array([item for item in speed_avg if item!= None])
+speed_std=np.array([item for item in speed_std if item!= None])
+
+        
+plt.errorbar(radius_h_avg,height_avg,3*height_std,3*radius_h_std,fmt='+')
 plt.xlabel("R [au]")
 plt.ylabel("h CO [au]")
 plt.show()
-plt.errorbar(radius_avg,speed_avg,speed_err,radius_err,fmt='+')
+plt.errorbar(radius_s_avg,speed_avg,3*speed_std,3*radius_s_std,fmt='+')
 plt.plot(R, v_kep(R,M)/1000)
 plt.xlabel("R [au]")
 plt.ylabel("v [km/s]")
