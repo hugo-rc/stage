@@ -58,7 +58,7 @@ class PA_finder(Tk):
         self.canvas.pack()
         
         
-        imsave('background.jpg', self.CO[self.n],cmap='afmhot', origin='lower')
+        imsave('background.jpg', self.CO[self.n],cmap='afmhot' )
         self.img=PhotoImage(file='background.jpg')
         self.background=self.canvas.create_image(0,0,anchor=NW,image=self.img)
         
@@ -120,7 +120,7 @@ class PA_finder(Tk):
         if self.n<self.nv-1:
             self.n+=1
             self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
-            imsave('background.jpg', self.CO[self.n], cmap='afmhot', origin='lower')
+            imsave('background.jpg', self.CO[self.n], cmap='afmhot' )
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)      
         else:
@@ -131,7 +131,7 @@ class PA_finder(Tk):
         if self.n>0:
             self.n-=1
             self.counter.configure(text=str(self.n+1)+"/"+str(self.nv))
-            imsave('background.jpg', self.CO[self.n], cmap='afmhot', origin='lower')
+            imsave('background.jpg', self.CO[self.n], cmap='afmhot' )
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)      
         else:
@@ -158,7 +158,7 @@ class PA_finder(Tk):
             self.PA=int(self.PA_entry.get())
             self.log.configure(text="Preview")   
             self.CO_rot=rotate(self.CO[self.n],180-self.PA, reshape=False)
-            imsave('background.jpg', self.CO_rot, cmap='afmhot', origin='lower')
+            imsave('background.jpg', self.CO_rot, cmap='afmhot' )
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
         except ValueError:
@@ -187,7 +187,7 @@ class PA_finder(Tk):
             self.cont_img=self.cont_img[self.y0:self.y1,self.x0:self.x1]
             self.crop_but.destroy()
             self.canvas.delete(self.id_rect)
-            imsave('background.jpg', self.CO[self.n], cmap='afmhot', origin='lower')
+            imsave('background.jpg', self.CO[self.n], cmap='afmhot' )
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
             self.star_but=Button(self.canvas, text='Find star center', command=self.star)
@@ -213,7 +213,7 @@ class PA_finder(Tk):
                 self.log.configure(text="ERROR: You forgot to define the last channel. \n Define it and press Done again")
             if checki and checkm and checkf:
                 
-                imsave('background.jpg', np.sum(copy(self.CO[self.ni:self.nf]),axis=0), cmap='afmhot', origin='lower')
+                imsave('background.jpg', np.sum(copy(self.CO[self.ni:self.nf]),axis=0), cmap='afmhot' )
                 self.img=PhotoImage(file='background.jpg')
                 self.canvas.itemconfig(self.background,image=self.img)
                 self.log.configure(text="Clic and drag to select a rectangle")
@@ -268,7 +268,7 @@ class PA_finder(Tk):
         a,xs,ys, sigmax,sigmay,theta,offset=popt
         self.pos_star=(xs,ys)
         
-        imsave('background.jpg', self.cont_img, cmap='afmhot', origin='lower')
+        imsave('background.jpg', self.cont_img, cmap='afmhot' )
         self.img=PhotoImage(file='background.jpg')
         self.canvas.itemconfig(self.background,image=self.img)
         self.id_center=self.canvas.create_oval(xs-r, ys-r, xs+r, ys+r, fill = 'yellow')
@@ -287,7 +287,7 @@ class PA_finder(Tk):
             self.canvas.delete(self.id_center)
         except :
             pass
-        imsave('background.jpg', self.cont_img, cmap='afmhot', origin='lower')
+        imsave('background.jpg', self.cont_img, cmap='afmhot' )
         img=cv2.imread('background.jpg',0)
         ret,thresh=cv2.threshold(img,10,255,0)
         im2, contours, hierarchy=cv2.findContours(thresh,1,2)
@@ -295,7 +295,7 @@ class PA_finder(Tk):
         ellipse=cv2.fitEllipse(cnt)
         xs,ys=ellipse[0]
         img=cv2.ellipse(img,ellipse,(255,0,0),2)
-        imsave('background.jpg', img, cmap='afmhot', origin='lower')
+        imsave('background.jpg', img, cmap='afmhot' )
         self.img=PhotoImage(file='background.jpg')
         self.canvas.itemconfig(self.background,image=self.img)
         self.id_center=self.canvas.create_oval(xs-r, ys-r, xs+r, ys+r, fill = 'yellow')
@@ -386,7 +386,7 @@ class maxima_finder(Tk):
         self.canvas=Canvas(self, width=2*550, height=550)
         self.canvas.pack()
         
-        imsave('background.jpg', self.CO[self.n], cmap='afmhot', origin='lower')
+        imsave('background.jpg', self.CO[self.n], cmap='afmhot' )
         self.img=PhotoImage(file='background.jpg')
         self.background=self.canvas.create_image(0,0,anchor=NW,image=self.img)
         
@@ -578,7 +578,7 @@ class maxima_finder(Tk):
             self.reset()
             self.detection.configure(text="")
             self.counter.configure(text=str(self.n+1+self.ni)+"/"+str(self.nv+self.ni)+ "  ||  speed:"+str(self.v_obs[self.n])+'m/s')
-            imsave('background.jpg', self.CO[self.n], cmap='afmhot', origin='lower')
+            imsave('background.jpg', self.CO[self.n], cmap='afmhot' )
             self.img=PhotoImage(file='background.jpg')
             self.canvas.itemconfig(self.background,image=self.img)
         else:
@@ -697,7 +697,7 @@ class storage_plus():
 
                 
 if __name__ == "__main__":
-    obj="HD163296_HR_CO" #studied object                                              ######### /!\ TO BE MODIFIED FOR EACH OBJECT
+    obj="test_12CO" #studied object                                              ######### /!\ TO BE MODIFIED FOR EACH OBJECT
     UI=True # enables or disables UI                                                   ######### /!\ TO BE MODIFIED FOR EACH OBJECT
     data=database.DATA(obj)
     path=data.PATH
